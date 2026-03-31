@@ -289,7 +289,7 @@ select {
   max-width: 480px;
   margin: 0 auto;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   background-color: var(--bg);
 }
 
@@ -353,16 +353,15 @@ select {
 .bottom-panel {
   position: fixed;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
   width: 100%;
-  max-width: 480px;
   background-color: var(--white);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  box-shadow: var(--shadow-xl);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
   padding: 20px 16px;
   padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-  z-index: 90;
+  z-index: 9000;
   animation: slideUp var(--transition-slow) ease-out;
 }
 

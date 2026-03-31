@@ -296,23 +296,24 @@
             z-index: 1;
         }
 
-        /* Bottom Panel */
+        /* Bottom Panel - override style.css */
         .bottom-panel {
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            background: #fff;
+            position: fixed !important;
+            bottom: 0 !important; left: 0 !important; right: 0 !important;
+            background: #fff !important;
             border-radius: 20px 20px 0 0;
             box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
-            z-index: 2000;
+            z-index: 9000 !important;
             padding: 20px 16px;
-            padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-            max-height: 85vh;
-            overflow-y: auto;
+            padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+            max-height: none !important;
+            overflow-y: visible !important;
             transition: transform 0.3s ease;
+            transform: none !important;
         }
 
         .bottom-panel.hidden {
-            transform: translateY(100%);
+            transform: translateY(100%) !important;
         }
 
         .panel-handle {
