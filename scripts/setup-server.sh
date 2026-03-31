@@ -24,9 +24,10 @@ if [ "$EUID" -eq 0 ]; then
   error "root로 실행하지 마세요. 일반 사용자로 실행 후 sudo 권한이 필요합니다."
 fi
 
-# 1. 시스템 업데이트
-step "시스템 업데이트"
+# 1. 시스템 업데이트 + 필수 패키지 (git 포함)
+step "시스템 업데이트 및 필수 패키지 설치"
 sudo apt update && sudo apt upgrade -y
+sudo apt install -y git curl wget jq ufw openssl
 
 # 2. Docker 설치
 step "Docker 설치"
@@ -38,9 +39,9 @@ else
   echo "Docker 이미 설치됨: $(docker --version)"
 fi
 
-# 3. 기타 도구 설치
-step "필수 도구 설치"
-sudo apt install -y git curl jq nginx certbot python3-certbot-nginx ufw
+# 3. Nginx 설치
+step "Nginx 설치"
+sudo apt install -y nginx certbot python3-certbot-nginx
 
 # 4. 방화벽 설정
 step "방화벽 설정"
