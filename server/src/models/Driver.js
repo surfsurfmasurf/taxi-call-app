@@ -18,7 +18,7 @@ const Driver = sequelize.define('Driver', {
   },
   license_expiry: {
     type: DataTypes.DATEONLY,
-    allowNull: false,
+    allowNull: true,
   },
   vehicle_number: {
     type: DataTypes.STRING(20),
