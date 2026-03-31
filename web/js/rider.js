@@ -387,7 +387,10 @@
         dest_address: destName
       });
 
-      currentRide = result.ride;
+      currentRide = result.ride || result;
+      if (!currentRide || !currentRide.id) {
+        throw new Error('운행 정보를 받지 못했습니다');
+      }
       showPanel('ride-status');
       updateRideStatus('REQUESTED');
       startRidePolling();
