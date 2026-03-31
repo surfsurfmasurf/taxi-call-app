@@ -47,7 +47,7 @@ const schemas = {
 
   registerDriver: Joi.object({
     license_number: Joi.string().required(),
-    license_expiry: Joi.date().iso().required(),
+    license_expiry: Joi.date().iso().optional(),
     vehicle_number: Joi.string().required(),
     vehicle_model: Joi.string().required(),
     vehicle_color: Joi.string().optional(),
