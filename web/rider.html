@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>택시 호출</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin="">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+          integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+          crossorigin="anonymous" referrerpolicy="no-referrer">
+
+    <!-- App CSS -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        /* Critical inline styles for layout */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            overflow: hidden;
+        }
+
+        /* Loading Overlay */
+        #loading {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255, 255, 255, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        #loading.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e0e0e0;
+            border-top-color: #3B82F6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .spinner-text {
+            margin-top: 16px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* View management */
+        .view {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        .view.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Login View */
+        #login-view {
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+            padding: 24px;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+            background: #fff;
+            border-radius: 20px;
+            padding: 40px 28px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .login-logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-logo i {
+            font-size: 48px;
+            color: #3B82F6;
+        }
+
+        .login-logo h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-top: 12px;
+        }
+
+        .login-logo p {
+            font-size: 14px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 6px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .input-group input {
+            width: 100%;
+            height: 48px;
+            border: 1.5px solid #ddd;
+            border-radius: 12px;
+            padding: 0 16px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus {
+            border-color: #3B82F6;
+        }
+
+        .btn {
+            height: 48px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, opacity 0.2s;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #3B82F6;
+            color: #fff;
+            width: 100%;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #2563EB;
+        }
+
+        .btn-outline {
+            background: #fff;
+            color: #3B82F6;
+            border: 1.5px solid #3B82F6;
+            padding: 0 16px;
+            white-space: nowrap;
+        }
+
+        .btn-outline:hover:not(:disabled) {
+            background: #EFF6FF;
+        }
+
+        .btn-danger {
+            background: #EF4444;
+            color: #fff;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #DC2626;
+        }
+
+        .btn-dark {
+            background: #1a1a1a;
+            color: #fff;
+            width: 100%;
+        }
+
+        .btn-dark:hover:not(:disabled) {
+            background: #333;
+        }
+
+        #otp-group {
+            display: none;
+        }
+
+        #otp-group.show {
+            display: block;
+        }
+
+        /* Main View */
+        #main-view {
+            position: relative;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        .top-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #menu-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: none;
+            font-size: 20px;
+            color: #333;
+            cursor: pointer;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #menu-btn:hover {
+            background: #f0f0f0;
+        }
+
+        #user-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .top-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #my-location-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: #fff;
+            font-size: 18px;
+            color: #3B82F6;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Map */
+        #map {
+            flex: 1;
+            width: 100%;
+            z-index: 1;
+        }
+
+        /* Bottom Panel */
+        .bottom-panel {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            background: #fff;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            padding: 20px 16px;
+            max-height: 70vh;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .bottom-panel.hidden {
+            transform: translateY(100%);
+        }
+
+        .panel-handle {
+            width: 40px;
+            height: 4px;
+            background: #ddd;
+            border-radius: 2px;
+            margin: 0 auto 16px;
+        }
+
+        /* Destination Input Area */
+        #destination-panel .destination-prompt {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 16px;
+        }
+
+        .location-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .location-input-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #f5f5f5;
+            border-radius: 12px;
+            padding: 0 14px;
+            height: 48px;
+        }
+
+        .location-input-row .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .dot.pickup {
+            background: #3B82F6;
+        }
+
+        .dot.destination {
+            background: #EF4444;
+        }
+
+        .location-input-row input {
+            flex: 1;
+            border: none;
+            background: none;
+            font-size: 15px;
+            outline: none;
+            color: #333;
+        }
+
+        .location-input-row input::placeholder {
+            color: #999;
+        }
+
+        .location-connector {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            margin-left: 4px;
+            position: absolute;
+            left: 30px;
+        }
+
+        /* Estimate Panel */
+        #estimate-panel {
+            display: none;
+        }
+
+        #estimate-panel.show {
+            display: block;
+        }
+
+        .estimate-header {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 16px;
+        }
+
+        .estimate-details {
+            display: flex;
+            justify-content: space-around;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .estimate-item {
+            text-align: center;
+        }
+
+        .estimate-item .label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+
+        .estimate-item .value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        .estimate-item .unit {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .payment-selector {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f5f5f5;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            cursor: pointer;
+        }
+
+        .payment-selector .payment-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .payment-selector .payment-info i {
+            font-size: 20px;
+            color: #3B82F6;
+        }
+
+        .payment-selector .payment-label {
+            font-size: 14px;
+            color: #333;
+        }
+
+        /* Ride Status Panel */
+        #ride-status {
+            display: none;
+        }
+
+        #ride-status.show {
+            display: block;
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .status-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #EFF6FF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #3B82F6;
+        }
+
+        .status-text h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        .status-text p {
+            font-size: 13px;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        /* Status Progress Bar */
+        .status-progress {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 0 8px;
+        }
+
+        .status-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .status-step .step-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ddd;
+            position: relative;
+        }
+
+        .status-step .step-dot.active {
+            background: #3B82F6;
+        }
+
+        .status-step .step-dot.completed {
+            background: #22C55E;
+        }
+
+        .status-step .step-label {
+            font-size: 10px;
+            color: #aaa;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .status-step .step-label.active {
+            color: #3B82F6;
+            font-weight: 600;
+        }
+
+        .status-step .step-label.completed {
+            color: #22C55E;
+        }
+
+        /* Driver Info Card */
+        .driver-info {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .driver-info-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .driver-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #999;
+        }
+
+        .driver-details {
+            flex: 1;
+        }
+
+        .driver-details .driver-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        .driver-details .car-info {
+            font-size: 13px;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .driver-details .plate-number {
+            font-size: 14px;
+            font-weight: 600;
+            color: #3B82F6;
+            margin-top: 2px;
+        }
+
+        .driver-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .driver-actions button {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            background: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .driver-actions .call-btn {
+            color: #22C55E;
+        }
+
+        .driver-actions .msg-btn {
+            color: #3B82F6;
+        }
+
+        #cancel-ride-btn {
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        /* Ride Complete Panel */
+        #ride-complete {
+            display: none;
+        }
+
+        #ride-complete.show {
+            display: block;
+        }
+
+        .complete-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .complete-header i {
+            font-size: 48px;
+            color: #22C55E;
+            margin-bottom: 8px;
+        }
+
+        .complete-header h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        .final-fare {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .final-fare .fare-label {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+
+        .final-fare .fare-amount {
+            font-size: 32px;
+            font-weight: 800;
+            color: #1a1a1a;
+        }
+
+        .final-fare .fare-currency {
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .star-rating {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .star-rating .star {
+            font-size: 36px;
+            color: #ddd;
+            cursor: pointer;
+            transition: color 0.15s, transform 0.15s;
+        }
+
+        .star-rating .star:hover,
+        .star-rating .star.active {
+            color: #FBBF24;
+            transform: scale(1.15);
+        }
+
+        .comment-area {
+            margin-bottom: 16px;
+        }
+
+        .comment-area textarea {
+            width: 100%;
+            height: 80px;
+            border: 1.5px solid #ddd;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+        }
+
+        .comment-area textarea:focus {
+            border-color: #3B82F6;
+        }
+
+        .comment-area textarea::placeholder {
+            color: #aaa;
+        }
+
+        /* Side Menu */
+        .menu-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .menu-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #side-menu {
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            width: 280px;
+            max-width: 80vw;
+            background: #fff;
+            z-index: 2001;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #side-menu.open {
+            transform: translateX(0);
+        }
+
+        .menu-header {
+            background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+            padding: 40px 20px 24px;
+            color: #fff;
+        }
+
+        .menu-header .menu-user-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        .menu-header .menu-user-name {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .menu-header .menu-user-phone {
+            font-size: 13px;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
+        .menu-list {
+            flex: 1;
+            padding: 8px 0;
+            list-style: none;
+        }
+
+        .menu-list li {
+            list-style: none;
+        }
+
+        .menu-list li a {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 20px;
+            color: #333;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+            transition: background 0.15s;
+        }
+
+        .menu-list li a:hover {
+            background: #f5f5f5;
+        }
+
+        .menu-list li a i {
+            width: 24px;
+            text-align: center;
+            font-size: 18px;
+            color: #666;
+        }
+
+        .menu-list .divider {
+            height: 1px;
+            background: #eee;
+            margin: 8px 0;
+        }
+
+        .menu-list .logout-item a {
+            color: #EF4444;
+        }
+
+        .menu-list .logout-item a i {
+            color: #EF4444;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Spinner Overlay -->
+    <div id="loading" class="hidden">
+        <div class="spinner"></div>
+        <span class="spinner-text">잠시만 기다려주세요...</span>
+    </div>
+
+    <!-- ==================== LOGIN VIEW ==================== -->
+    <div id="login-view" class="view active">
+        <div class="login-container">
+            <div class="login-logo">
+                <i class="fas fa-taxi"></i>
+                <h1>택시 호출</h1>
+                <p>빠르고 안전한 이동의 시작</p>
+            </div>
+
+            <div class="input-group">
+                <label for="phone-input">휴대폰 번호</label>
+                <div class="input-row">
+                    <input type="tel" id="phone-input" placeholder="010-0000-0000"
+                           maxlength="13" autocomplete="tel">
+                    <button type="button" id="send-otp-btn" class="btn btn-outline">OTP 발송</button>
+                </div>
+            </div>
+
+            <div id="otp-group" class="input-group">
+                <label for="otp-input">인증번호</label>
+                <input type="text" id="otp-input" placeholder="6자리 인증번호 입력"
+                       maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+            </div>
+
+            <button type="button" id="verify-btn" class="btn btn-primary" disabled>인증하기</button>
+        </div>
+    </div>
+
+    <!-- ==================== MAIN MAP VIEW ==================== -->
+    <div id="main-view" class="view">
+
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="top-bar-left">
+                <button type="button" id="menu-btn" aria-label="메뉴">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <span id="user-name"></span>
+            </div>
+            <div class="top-bar-right">
+                <button type="button" id="my-location-btn" aria-label="내 위치">
+                    <i class="fas fa-crosshairs"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Leaflet Map -->
+        <div id="map"></div>
+
+        <!-- Bottom Panel -->
+        <div class="bottom-panel" id="bottom-panel">
+            <div class="panel-handle"></div>
+
+            <!-- Destination Input Panel -->
+            <div id="destination-panel">
+                <div class="destination-prompt">어디로 갈까요?</div>
+                <div class="location-inputs">
+                    <div class="location-input-row">
+                        <span class="dot pickup"></span>
+                        <input type="text" id="pickup-input" placeholder="현재 위치" value="현재 위치" readonly>
+                        <button type="button" id="pickup-edit-btn" aria-label="출발지 변경" style="border:none;background:none;color:#888;cursor:pointer;">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                    </div>
+                    <div class="location-input-row">
+                        <span class="dot destination"></span>
+                        <input type="text" id="destination-input" placeholder="도착지를 입력하세요">
+                        <button type="button" id="destination-clear-btn" aria-label="도착지 지우기" style="border:none;background:none;color:#888;cursor:pointer;display:none;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <button type="button" id="estimate-btn" class="btn btn-primary" disabled>
+                    <i class="fas fa-calculator"></i>&nbsp; 요금 조회
+                </button>
+            </div>
+
+            <!-- Fare Estimate Panel -->
+            <div id="estimate-panel">
+                <div class="estimate-header">예상 요금</div>
+                <div class="estimate-details">
+                    <div class="estimate-item">
+                        <div class="label">요금</div>
+                        <div class="value" id="est-fare">-</div>
+                        <div class="unit">원</div>
+                    </div>
+                    <div class="estimate-item">
+                        <div class="label">거리</div>
+                        <div class="value" id="est-distance">-</div>
+                        <div class="unit">km</div>
+                    </div>
+                    <div class="estimate-item">
+                        <div class="label">예상 시간</div>
+                        <div class="value" id="est-duration">-</div>
+                        <div class="unit">분</div>
+                    </div>
+                </div>
+
+                <div class="payment-selector" id="payment-selector">
+                    <div class="payment-info">
+                        <i class="fas fa-credit-card"></i>
+                        <span class="payment-label" id="payment-label">신용/체크카드</span>
+                    </div>
+                    <i class="fas fa-chevron-right" style="color:#ccc;font-size:14px;"></i>
+                </div>
+
+                <!-- Payment Method Options (hidden by default) -->
+                <div id="payment-options" style="display:none; margin-bottom:16px;">
+                    <label style="display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer;">
+                        <input type="radio" name="payment-method" value="card" checked> 신용/체크카드
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer;">
+                        <input type="radio" name="payment-method" value="cash"> 현금
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer;">
+                        <input type="radio" name="payment-method" value="kakao"> 카카오페이
+                    </label>
+                </div>
+
+                <button type="button" id="call-taxi-btn" class="btn btn-dark">
+                    <i class="fas fa-taxi"></i>&nbsp; 택시 호출
+                </button>
+            </div>
+
+            <!-- Ride Status Panel -->
+            <div id="ride-status">
+                <div class="status-header">
+                    <div class="status-icon" id="status-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <div class="status-text">
+                        <h3 id="status-title">호출중</h3>
+                        <p id="status-subtitle">주변 택시를 찾고 있습니다...</p>
+                    </div>
+                </div>
+
+                <!-- Status Progress Steps -->
+                <div class="status-progress" id="status-progress">
+                    <div class="status-step" data-step="searching">
+                        <span class="step-dot active"></span>
+                        <span class="step-label active">호출중</span>
+                    </div>
+                    <div class="status-step" data-step="matched">
+                        <span class="step-dot"></span>
+                        <span class="step-label">배차완료</span>
+                    </div>
+                    <div class="status-step" data-step="arriving">
+                        <span class="step-dot"></span>
+                        <span class="step-label">이동중</span>
+                    </div>
+                    <div class="status-step" data-step="pickup">
+                        <span class="step-dot"></span>
+                        <span class="step-label">탑승</span>
+                    </div>
+                    <div class="status-step" data-step="in-progress">
+                        <span class="step-dot"></span>
+                        <span class="step-label">운행중</span>
+                    </div>
+                    <div class="status-step" data-step="arrived">
+                        <span class="step-dot"></span>
+                        <span class="step-label">도착</span>
+                    </div>
+                </div>
+
+                <!-- Driver Info (hidden until matched) -->
+                <div class="driver-info" id="driver-info" style="display:none;">
+                    <div class="driver-info-row">
+                        <div class="driver-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="driver-details">
+                            <div class="driver-name" id="driver-name">-</div>
+                            <div class="car-info" id="car-info">-</div>
+                            <div class="plate-number" id="plate-number">-</div>
+                        </div>
+                        <div class="driver-actions">
+                            <button type="button" class="call-btn" id="call-driver-btn" aria-label="전화">
+                                <i class="fas fa-phone"></i>
+                            </button>
+                            <button type="button" class="msg-btn" id="msg-driver-btn" aria-label="메시지">
+                                <i class="fas fa-comment"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" id="cancel-ride-btn" class="btn btn-danger">
+                    <i class="fas fa-times"></i>&nbsp; 호출 취소
+                </button>
+            </div>
+
+            <!-- Ride Complete Panel -->
+            <div id="ride-complete">
+                <div class="complete-header">
+                    <i class="fas fa-check-circle"></i>
+                    <h3>목적지에 도착했습니다</h3>
+                </div>
+
+                <div class="final-fare">
+                    <div class="fare-label">최종 요금</div>
+                    <div>
+                        <span class="fare-amount" id="final-fare-amount">-</span>
+                        <span class="fare-currency">원</span>
+                    </div>
+                </div>
+
+                <div class="star-rating" id="star-rating">
+                    <span class="star" data-value="1"><i class="fas fa-star"></i></span>
+                    <span class="star" data-value="2"><i class="fas fa-star"></i></span>
+                    <span class="star" data-value="3"><i class="fas fa-star"></i></span>
+                    <span class="star" data-value="4"><i class="fas fa-star"></i></span>
+                    <span class="star" data-value="5"><i class="fas fa-star"></i></span>
+                </div>
+
+                <div class="comment-area">
+                    <textarea id="review-comment" placeholder="기사님에 대한 한마디를 남겨주세요 (선택)"></textarea>
+                </div>
+
+                <button type="button" id="submit-review-btn" class="btn btn-primary">
+                    <i class="fas fa-paper-plane"></i>&nbsp; 평가 완료
+                </button>
+            </div>
+
+        </div><!-- /.bottom-panel -->
+    </div><!-- /#main-view -->
+
+    <!-- ==================== SIDE MENU ==================== -->
+    <div class="menu-overlay" id="menu-overlay"></div>
+    <nav id="side-menu" aria-label="사이드 메뉴">
+        <div class="menu-header">
+            <div class="menu-user-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="menu-user-name" id="menu-user-name">사용자</div>
+            <div class="menu-user-phone" id="menu-user-phone">010-0000-0000</div>
+        </div>
+        <ul class="menu-list">
+            <li>
+                <a href="#" id="menu-history">
+                    <i class="fas fa-history"></i>
+                    <span>운행 내역</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" id="menu-payment">
+                    <i class="fas fa-credit-card"></i>
+                    <span>결제 수단 관리</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" id="menu-coupon">
+                    <i class="fas fa-ticket-alt"></i>
+                    <span>쿠폰</span>
+                </a>
+            </li>
+            <li class="divider"></li>
+            <li class="logout-item">
+                <a href="#" id="menu-logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>로그아웃</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+
+    <!-- App JS -->
+    <script src="js/common.js"></script>
+    <script src="js/rider.js"></script>
+</body>
+</html>

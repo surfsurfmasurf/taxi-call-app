@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>택시 기사용 - TaxiApp</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin="">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+          integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+          crossorigin="anonymous" referrerpolicy="no-referrer">
+
+    <!-- App CSS -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+
+    <style>
+        /* ===== Reset & Base ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            background: #f5f6fa;
+            color: #2d3436;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ===== Loading Spinner ===== */
+        #loading-spinner {
+            position: fixed; inset: 0;
+            background: #fff;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.3s;
+        }
+        #loading-spinner.hidden { opacity: 0; pointer-events: none; }
+        .spinner {
+            width: 48px; height: 48px;
+            border: 4px solid #e0e0e0;
+            border-top-color: #0984e3;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== View Management ===== */
+        .view { display: none; }
+        .view.active { display: flex; flex-direction: column; }
+
+        /* ===== Login View ===== */
+        #login-view {
+            min-height: 100vh;
+            align-items: center; justify-content: center;
+            padding: 24px;
+            background: linear-gradient(135deg, #0984e3 0%, #6c5ce7 100%);
+        }
+        .login-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 40px 28px;
+            width: 100%; max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+        .login-card .logo {
+            text-align: center; margin-bottom: 32px;
+        }
+        .login-card .logo i {
+            font-size: 48px; color: #0984e3;
+        }
+        .login-card .logo h1 {
+            font-size: 22px; margin-top: 12px; color: #2d3436;
+        }
+        .login-card .logo p {
+            font-size: 14px; color: #636e72; margin-top: 4px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block; font-size: 13px; font-weight: 600;
+            color: #636e72; margin-bottom: 6px;
+        }
+        .input-row {
+            display: flex; gap: 8px;
+        }
+        .form-group input, .form-group select {
+            width: 100%; padding: 14px 16px;
+            border: 2px solid #dfe6e9;
+            border-radius: 12px; font-size: 16px;
+            transition: border-color 0.2s;
+            outline: none;
+            background: #fff;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: #0984e3;
+        }
+        .btn {
+            padding: 14px 24px;
+            border: none; border-radius: 12px;
+            font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-primary {
+            background: #0984e3; color: #fff; width: 100%;
+        }
+        .btn-primary:hover { background: #0773c5; }
+        .btn-primary:disabled { background: #b2bec3; cursor: not-allowed; }
+        .btn-secondary {
+            background: #dfe6e9; color: #2d3436;
+        }
+        .btn-secondary:hover { background: #b2bec3; }
+        .btn-sm { padding: 10px 16px; font-size: 14px; }
+        .btn-success { background: #00b894; color: #fff; }
+        .btn-success:hover { background: #00a381; }
+        .btn-danger { background: #d63031; color: #fff; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-warning { background: #fdcb6e; color: #2d3436; }
+        .btn-blue { background: #0984e3; color: #fff; }
+        .btn-blue:hover { background: #0773c5; }
+
+        .otp-section { display: none; margin-top: 8px; }
+        .otp-section.visible { display: block; }
+
+        /* ===== Register View ===== */
+        #register-view {
+            min-height: 100vh;
+            align-items: center; justify-content: center;
+            padding: 24px;
+            background: #f5f6fa;
+        }
+        .register-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 32px 28px;
+            width: 100%; max-width: 440px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+        }
+        .register-card h2 {
+            font-size: 22px; text-align: center; margin-bottom: 8px;
+        }
+        .register-card .subtitle {
+            text-align: center; color: #636e72; font-size: 14px; margin-bottom: 24px;
+        }
+        .color-options {
+            display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;
+        }
+        .color-option {
+            width: 36px; height: 36px;
+            border-radius: 50%; border: 3px solid transparent;
+            cursor: pointer; transition: border-color 0.2s;
+        }
+        .color-option.selected { border-color: #0984e3; }
+        .color-option[data-color="white"] { background: #fff; border: 3px solid #dfe6e9; }
+        .color-option[data-color="black"] { background: #2d3436; }
+        .color-option[data-color="silver"] { background: #b2bec3; }
+        .color-option[data-color="red"] { background: #d63031; }
+        .color-option[data-color="blue"] { background: #0984e3; }
+        .color-option[data-color="yellow"] { background: #fdcb6e; }
+
+        /* ===== Main View ===== */
+        #main-view {
+            height: 100vh; position: relative;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            position: absolute; top: 0; left: 0; right: 0;
+            z-index: 1000;
+            background: #fff;
+            padding: 12px 16px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        .top-bar-left {
+            display: flex; align-items: center; gap: 12px;
+        }
+        .menu-btn {
+            background: none; border: none; font-size: 20px;
+            color: #2d3436; cursor: pointer; padding: 4px;
+        }
+        .driver-name { font-weight: 700; font-size: 16px; }
+
+        .status-badge {
+            padding: 4px 12px; border-radius: 20px;
+            font-size: 12px; font-weight: 700;
+            text-transform: uppercase;
+        }
+        .status-badge.available { background: #00b89433; color: #00b894; }
+        .status-badge.busy { background: #d6303133; color: #d63031; }
+        .status-badge.offline { background: #b2bec333; color: #636e72; }
+
+        /* Status Toggle */
+        .status-toggle {
+            display: flex; align-items: center; gap: 8px;
+        }
+        .toggle-label { font-size: 13px; color: #636e72; font-weight: 600; }
+        .toggle-switch {
+            position: relative; width: 52px; height: 28px;
+            background: #b2bec3; border-radius: 14px;
+            cursor: pointer; transition: background 0.3s;
+        }
+        .toggle-switch.on { background: #00b894; }
+        .toggle-switch .toggle-knob {
+            position: absolute; top: 3px; left: 3px;
+            width: 22px; height: 22px;
+            background: #fff; border-radius: 50%;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+        .toggle-switch.on .toggle-knob { transform: translateX(24px); }
+
+        /* Map */
+        #driver-map {
+            flex: 1; width: 100%; z-index: 1;
+        }
+
+        /* Bottom Stats */
+        .bottom-stats {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            z-index: 1000;
+            background: #fff;
+            padding: 16px;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        .stat-item {
+            text-align: center; padding: 12px 8px;
+            background: #f5f6fa; border-radius: 12px;
+        }
+        .stat-item .stat-icon {
+            font-size: 20px; margin-bottom: 4px;
+        }
+        .stat-item .stat-value {
+            font-size: 20px; font-weight: 800; color: #2d3436;
+        }
+        .stat-item .stat-label {
+            font-size: 12px; color: #636e72; margin-top: 2px;
+        }
+
+        /* ===== Ride Request Popup ===== */
+        #ride-request {
+            position: fixed; inset: 0;
+            z-index: 2000;
+            display: none; align-items: flex-end; justify-content: center;
+            background: rgba(0,0,0,0.5);
+            padding: 16px;
+        }
+        #ride-request.active { display: flex; }
+        .request-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 24px;
+            width: 100%; max-width: 420px;
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .request-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .request-header h3 {
+            font-size: 18px; color: #2d3436;
+        }
+        .countdown-timer {
+            width: 44px; height: 44px;
+            border-radius: 50%;
+            background: #fff3e0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; font-weight: 800; color: #e17055;
+            position: relative;
+        }
+        .countdown-ring {
+            position: absolute; inset: 0;
+        }
+        .countdown-ring circle {
+            fill: none; stroke-width: 3;
+        }
+        .countdown-ring .bg { stroke: #dfe6e9; }
+        .countdown-ring .progress {
+            stroke: #e17055;
+            stroke-dasharray: 126;
+            stroke-dashoffset: 0;
+            transform: rotate(-90deg);
+            transform-origin: center;
+            transition: stroke-dashoffset 1s linear;
+        }
+
+        .request-route {
+            margin-bottom: 16px;
+        }
+        .route-point {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 8px 0;
+        }
+        .route-point .dot {
+            width: 12px; height: 12px;
+            border-radius: 50%; margin-top: 4px;
+            flex-shrink: 0;
+        }
+        .route-point .dot.pickup { background: #00b894; }
+        .route-point .dot.dest { background: #d63031; }
+        .route-connector {
+            width: 2px; height: 20px;
+            background: #dfe6e9; margin-left: 5px;
+        }
+        .route-point .location-text {
+            font-size: 14px; color: #2d3436; line-height: 1.4;
+        }
+        .route-point .location-label {
+            font-size: 11px; color: #636e72; margin-bottom: 2px;
+        }
+
+        .request-info {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 12px; margin-bottom: 20px;
+            padding: 12px;
+            background: #f5f6fa; border-radius: 12px;
+        }
+        .request-info-item {
+            text-align: center;
+        }
+        .request-info-item .info-label {
+            font-size: 11px; color: #636e72;
+        }
+        .request-info-item .info-value {
+            font-size: 16px; font-weight: 700; color: #2d3436;
+        }
+        .request-actions {
+            display: flex; gap: 12px;
+        }
+        .request-actions .btn { flex: 1; }
+
+        /* ===== Active Ride View ===== */
+        #active-ride {
+            height: 100vh; position: relative;
+        }
+        .ride-top-bar {
+            position: absolute; top: 0; left: 0; right: 0;
+            z-index: 1000;
+            background: #fff;
+            padding: 12px 16px;
+            display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        .ride-status-label {
+            font-size: 13px; font-weight: 700; color: #0984e3;
+            background: #0984e320; padding: 4px 12px; border-radius: 20px;
+        }
+        .ride-passenger-name { font-weight: 700; font-size: 16px; }
+
+        #active-ride-map {
+            flex: 1; width: 100%; z-index: 1;
+        }
+
+        .ride-bottom-panel {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            z-index: 1000;
+            background: #fff;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+            padding: 20px 16px;
+            max-height: 45vh;
+            overflow-y: auto;
+        }
+        .passenger-info {
+            display: flex; align-items: center; gap: 12px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f0f0f0;
+            margin-bottom: 16px;
+        }
+        .passenger-avatar {
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            background: #dfe6e9;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; color: #636e72;
+        }
+        .passenger-details { flex: 1; }
+        .passenger-details .name { font-weight: 700; font-size: 16px; }
+        .passenger-details .address { font-size: 13px; color: #636e72; margin-top: 2px; }
+        .passenger-call-btn {
+            width: 44px; height: 44px;
+            border-radius: 50%; border: none;
+            background: #00b894; color: #fff;
+            font-size: 18px; cursor: pointer;
+        }
+
+        .nav-info {
+            display: flex; justify-content: space-around;
+            padding: 12px 0;
+            margin-bottom: 16px;
+            background: #f5f6fa;
+            border-radius: 12px;
+        }
+        .nav-info-item { text-align: center; }
+        .nav-info-item .nav-value { font-size: 18px; font-weight: 800; }
+        .nav-info-item .nav-label { font-size: 11px; color: #636e72; }
+
+        .ride-actions {
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .ride-actions .btn {
+            width: 100%; font-size: 16px; padding: 16px;
+        }
+        .ride-action-btn { display: none; }
+        .ride-action-btn.current { display: flex; }
+
+        /* ===== Side Menu ===== */
+        #side-menu-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 3000;
+            display: none; opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #side-menu-overlay.active { display: block; opacity: 1; }
+
+        #side-menu {
+            position: fixed; top: 0; left: -280px; bottom: 0;
+            width: 280px;
+            background: #fff;
+            z-index: 3001;
+            transition: left 0.3s ease;
+            display: flex; flex-direction: column;
+        }
+        #side-menu.open { left: 0; }
+
+        .menu-header {
+            padding: 32px 24px 24px;
+            background: linear-gradient(135deg, #0984e3, #6c5ce7);
+            color: #fff;
+        }
+        .menu-header .menu-avatar {
+            width: 56px; height: 56px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; margin-bottom: 12px;
+        }
+        .menu-header .menu-driver-name {
+            font-size: 18px; font-weight: 700;
+        }
+        .menu-header .menu-driver-phone {
+            font-size: 13px; opacity: 0.8; margin-top: 2px;
+        }
+
+        .menu-items {
+            flex: 1; padding: 12px 0;
+        }
+        .menu-item {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 24px;
+            font-size: 15px; color: #2d3436;
+            cursor: pointer; transition: background 0.2s;
+            border: none; background: none; width: 100%;
+            text-align: left;
+        }
+        .menu-item:hover { background: #f5f6fa; }
+        .menu-item i { width: 20px; text-align: center; color: #636e72; }
+        .menu-divider {
+            height: 1px; background: #f0f0f0; margin: 8px 24px;
+        }
+
+        .menu-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #f0f0f0;
+        }
+        .menu-footer .app-version {
+            font-size: 12px; color: #b2bec3; text-align: center;
+        }
+
+        /* ===== Toast ===== */
+        #toast {
+            position: fixed; bottom: 100px; left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #2d3436; color: #fff;
+            padding: 12px 24px; border-radius: 12px;
+            font-size: 14px; z-index: 5000;
+            opacity: 0; pointer-events: none;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        #toast.show {
+            opacity: 1; transform: translateX(-50%) translateY(0);
+        }
+
+        /* ===== Utilities ===== */
+        .text-center { text-align: center; }
+        .mt-8 { margin-top: 8px; }
+        .mt-16 { margin-top: 16px; }
+        .mb-8 { margin-bottom: 8px; }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 360px) {
+            .login-card, .register-card { padding: 28px 20px; }
+            .stats-grid { gap: 8px; }
+            .stat-item .stat-value { font-size: 17px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- ===== 1. Login View ===== -->
+    <div id="login-view" class="view active">
+        <div class="login-card">
+            <div class="logo">
+                <i class="fas fa-taxi"></i>
+                <h1>TaxiApp Driver</h1>
+                <p>기사님 전용 앱</p>
+            </div>
+
+            <div class="form-group">
+                <label for="login-phone">휴대폰 번호</label>
+                <div class="input-row">
+                    <input type="tel" id="login-phone" placeholder="010-0000-0000" maxlength="13">
+                    <button id="btn-send-otp" class="btn btn-primary btn-sm" style="white-space:nowrap;">
+                        OTP 발송
+                    </button>
+                </div>
+            </div>
+
+            <div id="otp-section" class="otp-section">
+                <div class="form-group">
+                    <label for="login-otp">인증번호</label>
+                    <div class="input-row">
+                        <input type="number" id="login-otp" placeholder="6자리 입력" maxlength="6">
+                        <button id="btn-verify-otp" class="btn btn-success btn-sm" style="white-space:nowrap;">
+                            인증 확인
+                        </button>
+                    </div>
+                    <p id="otp-timer" class="mt-8" style="font-size:13px; color:#e17055; text-align:right;"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 2. Driver Registration View ===== -->
+    <div id="register-view" class="view">
+        <div class="register-card">
+            <h2><i class="fas fa-id-card"></i> 기사 등록</h2>
+            <p class="subtitle">서비스 이용을 위해 차량 정보를 등록해주세요</p>
+
+            <div class="form-group">
+                <label for="reg-license">면허번호</label>
+                <input type="text" id="reg-license" placeholder="운전면허번호 입력">
+            </div>
+
+            <div class="form-group">
+                <label for="reg-vehicle-number">차량번호</label>
+                <input type="text" id="reg-vehicle-number" placeholder="예: 12가 3456">
+            </div>
+
+            <div class="form-group">
+                <label for="reg-vehicle-model">차종</label>
+                <input type="text" id="reg-vehicle-model" placeholder="예: 현대 쏘나타">
+            </div>
+
+            <div class="form-group">
+                <label>차량색상</label>
+                <div class="color-options" id="color-options">
+                    <div class="color-option selected" data-color="white" title="흰색"></div>
+                    <div class="color-option" data-color="black" title="검정"></div>
+                    <div class="color-option" data-color="silver" title="은색"></div>
+                    <div class="color-option" data-color="red" title="빨강"></div>
+                    <div class="color-option" data-color="blue" title="파랑"></div>
+                    <div class="color-option" data-color="yellow" title="노랑"></div>
+                </div>
+            </div>
+
+            <button id="btn-register" class="btn btn-primary mt-16">
+                <i class="fas fa-check-circle"></i> 기사 등록
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== 3. Main Dashboard View ===== -->
+    <div id="main-view" class="view">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="top-bar-left">
+                <button id="btn-menu" class="menu-btn" aria-label="메뉴">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <span id="driver-name" class="driver-name">기사님</span>
+                <span id="status-badge" class="status-badge offline">OFFLINE</span>
+            </div>
+            <div class="status-toggle">
+                <span class="toggle-label">운행</span>
+                <div id="status-toggle" class="toggle-switch" role="switch" aria-checked="false" tabindex="0">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map -->
+        <div id="driver-map"></div>
+
+        <!-- Bottom Stats -->
+        <div class="bottom-stats">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-icon"><i class="fas fa-car" style="color:#0984e3;"></i></div>
+                    <div class="stat-value" id="stat-rides">0건</div>
+                    <div class="stat-label">오늘 운행</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon"><i class="fas fa-won-sign" style="color:#00b894;"></i></div>
+                    <div class="stat-value" id="stat-earnings">₩0</div>
+                    <div class="stat-label">오늘 수입</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon"><i class="fas fa-star" style="color:#fdcb6e;"></i></div>
+                    <div class="stat-value" id="stat-rating">-</div>
+                    <div class="stat-label">평점</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 4. Ride Request Popup ===== -->
+    <div id="ride-request">
+        <div class="request-card">
+            <div class="request-header">
+                <h3><i class="fas fa-bell" style="color:#e17055;"></i> 새로운 호출</h3>
+                <div class="countdown-timer" id="countdown-timer">
+                    <svg class="countdown-ring" viewBox="0 0 44 44">
+                        <circle class="bg" cx="22" cy="22" r="20"/>
+                        <circle class="progress" id="countdown-progress" cx="22" cy="22" r="20"/>
+                    </svg>
+                    <span id="countdown-text">15</span>
+                </div>
+            </div>
+
+            <div class="request-route">
+                <div class="route-point">
+                    <div class="dot pickup"></div>
+                    <div>
+                        <div class="location-label">출발지</div>
+                        <div class="location-text" id="request-pickup">서울시 강남구 테헤란로 123</div>
+                    </div>
+                </div>
+                <div class="route-connector"></div>
+                <div class="route-point">
+                    <div class="dot dest"></div>
+                    <div>
+                        <div class="location-label">목적지</div>
+                        <div class="location-text" id="request-destination">서울시 서초구 반포대로 45</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="request-info">
+                <div class="request-info-item">
+                    <div class="info-label">예상 요금</div>
+                    <div class="info-value" id="request-fare">₩12,500</div>
+                </div>
+                <div class="request-info-item">
+                    <div class="info-label">승객까지 거리</div>
+                    <div class="info-value" id="request-distance">1.2km</div>
+                </div>
+            </div>
+
+            <div class="request-actions">
+                <button id="btn-reject" class="btn btn-danger">
+                    <i class="fas fa-times"></i> 거절
+                </button>
+                <button id="btn-accept" class="btn btn-success">
+                    <i class="fas fa-check"></i> 수락
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 5. Active Ride View ===== -->
+    <div id="active-ride" class="view">
+        <!-- Top Bar -->
+        <div class="ride-top-bar">
+            <span id="ride-status-label" class="ride-status-label">승객에게 이동 중</span>
+            <span id="ride-passenger-name" class="ride-passenger-name">홍길동</span>
+        </div>
+
+        <!-- Map -->
+        <div id="active-ride-map"></div>
+
+        <!-- Bottom Panel -->
+        <div class="ride-bottom-panel">
+            <div class="passenger-info">
+                <div class="passenger-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="passenger-details">
+                    <div class="name" id="passenger-name">홍길동</div>
+                    <div class="address" id="passenger-pickup-address">서울시 강남구 테헤란로 123</div>
+                </div>
+                <button id="btn-call-passenger" class="passenger-call-btn" aria-label="승객에게 전화">
+                    <i class="fas fa-phone"></i>
+                </button>
+            </div>
+
+            <div class="nav-info">
+                <div class="nav-info-item">
+                    <div class="nav-value" id="nav-distance">1.2km</div>
+                    <div class="nav-label">남은 거리</div>
+                </div>
+                <div class="nav-info-item">
+                    <div class="nav-value" id="nav-time">5분</div>
+                    <div class="nav-label">예상 시간</div>
+                </div>
+                <div class="nav-info-item">
+                    <div class="nav-value" id="nav-fare">₩12,500</div>
+                    <div class="nav-label">예상 요금</div>
+                </div>
+            </div>
+
+            <div class="ride-actions">
+                <button id="btn-arrived" class="btn btn-warning ride-action-btn current">
+                    <i class="fas fa-map-marker-alt"></i> 승객 도착
+                </button>
+                <button id="btn-picked-up" class="btn btn-blue ride-action-btn">
+                    <i class="fas fa-user-check"></i> 탑승 완료
+                </button>
+                <button id="btn-start-ride" class="btn btn-primary ride-action-btn">
+                    <i class="fas fa-play-circle"></i> 운행 시작
+                </button>
+                <button id="btn-complete-ride" class="btn btn-success ride-action-btn">
+                    <i class="fas fa-flag-checkered"></i> 운행 완료
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 6. Side Menu ===== -->
+    <div id="side-menu-overlay"></div>
+    <nav id="side-menu">
+        <div class="menu-header">
+            <div class="menu-avatar"><i class="fas fa-user"></i></div>
+            <div class="menu-driver-name" id="menu-driver-name">기사님</div>
+            <div class="menu-driver-phone" id="menu-driver-phone">010-0000-0000</div>
+        </div>
+        <div class="menu-items">
+            <button class="menu-item" id="menu-dashboard">
+                <i class="fas fa-tachometer-alt"></i> 대시보드
+            </button>
+            <button class="menu-item" id="menu-settlements">
+                <i class="fas fa-file-invoice-dollar"></i> 정산 내역
+            </button>
+            <button class="menu-item" id="menu-history">
+                <i class="fas fa-history"></i> 운행 기록
+            </button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" id="menu-logout">
+                <i class="fas fa-sign-out-alt"></i> 로그아웃
+            </button>
+        </div>
+        <div class="menu-footer">
+            <div class="app-version">TaxiApp Driver v1.0.0</div>
+        </div>
+    </nav>
+
+    <!-- Toast -->
+    <div id="toast"></div>
+
+    <!-- App Scripts -->
+    <script src="js/common.js"></script>
+    <script src="js/driver.js"></script>
+</body>
+</html>

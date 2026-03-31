@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>택시콜 - 택시 호출 서비스</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    /* Header */
+    .logo {
+      font-size: 3.5rem;
+      margin-bottom: 4px;
+    }
+
+    .title {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 1rem;
+      opacity: 0.85;
+      margin-top: 6px;
+      margin-bottom: 40px;
+    }
+
+    /* Server status */
+    .status-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(4px);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      margin-bottom: 32px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #aaa;
+      transition: background 0.3s;
+    }
+
+    .status-dot.online {
+      background: #4ade80;
+      box-shadow: 0 0 6px #4ade80;
+    }
+
+    .status-dot.offline {
+      background: #f87171;
+      box-shadow: 0 0 6px #f87171;
+    }
+
+    /* Cards */
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.95);
+      color: #1e293b;
+      border-radius: 16px;
+      padding: 32px 16px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .card:active {
+      transform: translateY(-1px);
+    }
+
+    .card-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .card-desc {
+      font-size: 0.85rem;
+      color: #64748b;
+    }
+
+    /* Footer */
+    .footer {
+      font-size: 0.75rem;
+      opacity: 0.6;
+      margin-top: auto;
+      padding: 20px;
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 480px) {
+      .cards {
+        grid-template-columns: 1fr;
+      }
+
+      .logo {
+        font-size: 2.8rem;
+      }
+
+      .title {
+        font-size: 1.6rem;
+      }
+
+      .card {
+        padding: 24px 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="logo">&#x1F695;</div>
+    <div class="title">택시콜</div>
+    <div class="subtitle">택시 호출 서비스 POC</div>
+
+    <div class="status-bar">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">서버 확인 중...</span>
+    </div>
+
+    <div class="cards">
+      <div class="card" onclick="location.href='rider.html'">
+        <div class="card-icon">&#x1F64B;</div>
+        <div class="card-title">승객 모드</div>
+        <div class="card-desc">택시를 호출하세요</div>
+      </div>
+
+      <div class="card" onclick="location.href='driver.html'">
+        <div class="card-icon">&#x1F696;</div>
+        <div class="card-title">기사 모드</div>
+        <div class="card-desc">운행을 시작하세요</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">POC Demo - API Server Required</div>
+
+  <script>
+    (function checkHealth() {
+      var dot = document.getElementById('statusDot');
+      var text = document.getElementById('statusText');
+
+      fetch('/health')
+        .then(function(res) {
+          if (res.ok) {
+            dot.className = 'status-dot online';
+            text.textContent = '서버 연결됨';
+          } else {
+            dot.className = 'status-dot offline';
+            text.textContent = '서버 응답 오류';
+          }
+        })
+        .catch(function() {
+          dot.className = 'status-dot offline';
+          text.textContent = '서버 연결 실패';
+        });
+    })();
+  </script>
+
+</body>
+</html>

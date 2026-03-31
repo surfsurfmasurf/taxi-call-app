@@ -35,10 +35,18 @@ const io = new Server(server, {
 app.set('io', io);
 
 // 미들웨어
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false, // POC: CDN 리소스 허용
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
+
+// 정적 파일 서빙 (웹 프론트엔드)
+const path = require('path');
+const webDir = process.env.WEB_DIR || path.join(__dirname, '../../web');
+app.use(express.static(webDir));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -69,9 +77,12 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// 404
+// 404 - API는 JSON, 그 외는 index.html로 fallback
 app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' });
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  res.sendFile(path.join(webDir, 'index.html'));
 });
 
 // Error handler

@@ -141,6 +141,15 @@ server {
     location /health {
         proxy_pass http://taxi_backend;
     }
+
+    # 웹 프론트엔드 (정적 파일 → Node.js에서 서빙)
+    location / {
+        proxy_pass http://taxi_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    }
 }
 NGINX
 
