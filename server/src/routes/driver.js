@@ -67,7 +67,7 @@ router.post('/location', authenticate, authorize('DRIVER'), async (req, res) => 
 
     // 운행 중이면 위치 로그 저장
     const activeRide = await Ride.findOne({
-      where: { driver_id: req.driver.id, status: ['IN_PROGRESS', 'ARRIVING', 'PICKUP'] },
+      where: { driver_id: req.driver.id, status: { [require('sequelize').Op.in]: ['IN_PROGRESS', 'ARRIVING', 'PICKUP'] } },
     });
 
     if (activeRide) {
@@ -108,9 +108,10 @@ router.post('/respond', authenticate, authorize('DRIVER'), async (req, res) => {
     }
 
     // 수락률 업데이트
+    const { Op } = require('sequelize');
     const totalRequests = await Ride.count({ where: { driver_id: req.driver.id } });
     const acceptedRequests = await Ride.count({
-      where: { driver_id: req.driver.id, status: { $ne: 'CANCELLED' } },
+      where: { driver_id: req.driver.id, status: { [Op.ne]: 'CANCELLED' } },
     });
     if (totalRequests > 0) {
       await req.driver.update({

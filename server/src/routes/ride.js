@@ -83,7 +83,7 @@ router.post('/', authenticate, authorize('RIDER'), validate(schemas.requestRide)
     if (!is_scheduled) {
       const io = req.app.get('io');
       // 비동기로 매칭 실행
-      executeMatching(ride.id, pickup_lat, pickup_lng, io).then(async (result) => {
+      executeMatching(ride.id, pickup_lat, pickup_lng, io).then(async (result) => {  // eslint-disable-line no-floating-promise
         if (result.success) {
           await ride.update({
             driver_id: result.driver_id,
@@ -116,6 +116,9 @@ router.post('/', authenticate, authorize('RIDER'), validate(schemas.requestRide)
           await ride.update({ status: 'CANCELLED', cancelled_by: 'SYSTEM', cancel_reason: '배차 실패' });
           io.to(`rider:${req.user.id}`).emit('ride:no_driver', { ride_id: ride.id });
         }
+      }).catch((err) => {
+        console.error('Matching error:', err);
+        ride.update({ status: 'CANCELLED', cancelled_by: 'SYSTEM', cancel_reason: '매칭 오류' });
       });
     }
 
@@ -152,6 +155,15 @@ router.get('/:id', authenticate, async (req, res) => {
     });
 
     if (!ride) return res.status(404).json({ error: '운행을 찾을 수 없습니다.' });
+
+    // 본인 운행만 조회 가능 (관리자 제외)
+    if (req.user.type !== 'ADMIN') {
+      const isRider = ride.rider_id === req.user.id;
+      const isDriver = req.driver && ride.driver_id === req.driver.id;
+      if (!isRider && !isDriver) {
+        return res.status(403).json({ error: '권한이 없습니다.' });
+      }
+    }
 
     res.json({ ride });
   } catch (error) {
@@ -208,6 +220,21 @@ router.patch('/:id/status', authenticate, async (req, res) => {
     const { status } = req.body;
     const ride = await Ride.findByPk(req.params.id);
     if (!ride) return res.status(404).json({ error: '운행을 찾을 수 없습니다.' });
+
+    // 유효한 상태 전환 검증
+    const VALID_TRANSITIONS = {
+      REQUESTED: ['MATCHED', 'CANCELLED'],
+      MATCHED: ['ARRIVING', 'CANCELLED'],
+      ARRIVING: ['PICKUP', 'CANCELLED'],
+      PICKUP: ['IN_PROGRESS', 'CANCELLED'],
+      IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
+    };
+    const allowed = VALID_TRANSITIONS[ride.status];
+    if (!allowed || !allowed.includes(status)) {
+      return res.status(400).json({
+        error: `${ride.status}에서 ${status}로 변경할 수 없습니다.`,
+      });
+    }
 
     const io = req.app.get('io');
     const updates = { status };

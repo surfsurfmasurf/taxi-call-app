@@ -164,14 +164,19 @@ function initializeSocket(io) {
 
       if (socket.driver && socket.driver.status === 'AVAILABLE') {
         // 기사가 연결 해제 시 잠시 대기 후 오프라인 처리
+        const driverId = socket.driver.id; // 참조 캡처하여 메모리 릭 방지
         const redis = await getRedisClient();
-        await redis.setEx(`driver:reconnect:${socket.driver.id}`, 30, 'pending');
+        await redis.setEx(`driver:reconnect:${driverId}`, 30, 'pending');
 
         setTimeout(async () => {
-          const status = await redis.get(`driver:reconnect:${socket.driver.id}`);
-          if (status === 'pending') {
-            await socket.driver.update({ status: 'OFFLINE' });
-            await removeDriverLocation(socket.driver.id);
+          try {
+            const reconnectStatus = await redis.get(`driver:reconnect:${driverId}`);
+            if (reconnectStatus === 'pending') {
+              await Driver.update({ status: 'OFFLINE' }, { where: { id: driverId } });
+              await removeDriverLocation(driverId);
+            }
+          } catch (err) {
+            console.error('Disconnect cleanup error:', err);
           }
         }, 30000);
       }

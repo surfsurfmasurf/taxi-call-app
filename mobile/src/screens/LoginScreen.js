@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { authAPI } from '../services/api';
+import { authAPI } from '../../services/api';
 
 export default function LoginScreen({ navigation }) {
   const [phone, setPhone] = useState('');

@@ -38,8 +38,12 @@ router.post('/apply', authenticate, validate(schemas.applyCoupon), async (req, r
       return res.status(400).json({ error: '이미 등록한 쿠폰입니다.' });
     }
 
-    await UserCoupon.create({ user_id: req.user.id, coupon_id: coupon.id });
-    await coupon.increment('current_uses');
+    // 트랜잭션으로 race condition 방지
+    const sequelize = require('../config/database');
+    await sequelize.transaction(async (t) => {
+      await UserCoupon.create({ user_id: req.user.id, coupon_id: coupon.id }, { transaction: t });
+      await coupon.increment('current_uses', { transaction: t });
+    });
 
     res.json({ success: true, coupon });
   } catch (error) {

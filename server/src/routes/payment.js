@@ -74,7 +74,7 @@ router.post('/methods/billing-key', authenticate, async (req, res) => {
     // 기존 기본 해제
     await PaymentMethod.update(
       { is_default: false },
-      { where: { user_id: req.user.id, id: { $ne: method.id } } }
+      { where: { user_id: req.user.id, id: { [require('sequelize').Op.ne]: method.id } } }
     );
 
     res.status(201).json({ success: true, method });

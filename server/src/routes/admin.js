@@ -150,12 +150,19 @@ router.get('/promotions', async (req, res) => {
 });
 
 router.post('/promotions', async (req, res) => {
-  const promotion = await Promotion.create(req.body);
+  const { title, description, image_url, link_url, target_type, display_order, valid_from, valid_until } = req.body;
+  const promotion = await Promotion.create({
+    title, description, image_url, link_url, target_type, display_order, valid_from, valid_until,
+  });
   res.status(201).json({ success: true, promotion });
 });
 
 router.patch('/promotions/:id', async (req, res) => {
-  await Promotion.update(req.body, { where: { id: req.params.id } });
+  const { title, description, image_url, link_url, target_type, display_order, valid_from, valid_until, is_active } = req.body;
+  await Promotion.update(
+    { title, description, image_url, link_url, target_type, display_order, valid_from, valid_until, is_active },
+    { where: { id: req.params.id } }
+  );
   res.json({ success: true });
 });
 

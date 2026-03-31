@@ -6,8 +6,12 @@ const SOCKET_URL = process.env.SOCKET_URL || 'http://localhost:3000';
 let socket = null;
 
 export async function connectSocket() {
+  if (socket && socket.connected) return socket; // 중복 연결 방지
+
   const token = await AsyncStorage.getItem('accessToken');
   if (!token) return null;
+
+  if (socket) socket.disconnect(); // 기존 끊긴 소켓 정리
 
   socket = io(SOCKET_URL, {
     auth: { token },

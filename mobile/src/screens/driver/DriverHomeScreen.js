@@ -23,11 +23,20 @@ export default function DriverHomeScreen({ navigation }) {
   const [incomingRide, setIncomingRide] = useState(null);
   const [countdown, setCountdown] = useState(0);
 
+  const countdownTimerRef = useRef(null);
+
   useEffect(() => {
     loadDashboard();
     setupSocketListeners();
-    return () => stopLocationTracking();
-  }, []);
+    return () => {
+      stopLocationTracking();
+      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+      if (socket) {
+        socket.off('ride:request');
+        socket.off('driver:status_changed');
+      }
+    };
+  }, [socket]);
 
   async function loadDashboard() {
     try {
@@ -46,10 +55,12 @@ export default function DriverHomeScreen({ navigation }) {
       setIncomingRide(data);
       setCountdown(15);
 
-      const timer = setInterval(() => {
+      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
-            clearInterval(timer);
+            clearInterval(countdownTimerRef.current);
+            countdownTimerRef.current = null;
             setIncomingRide(null);
             return 0;
           }

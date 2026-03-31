@@ -31,8 +31,9 @@ export default function RideScreen({ route, navigation }) {
   useEffect(() => {
     loadRide();
     joinRideRoom(rideId);
-    setupSocketListeners();
-  }, []);
+    const cleanup = setupSocketListeners();
+    return () => { if (cleanup) cleanup(); };
+  }, [socket]);
 
   async function loadRide() {
     try {
